@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="$data.daoName">
+
+    <select id="getById" resultType="$data.entityName">
+        select * from $data.tableName where id = #{id} and $data.deleteFieldName = 0;
+    </select>
+    
+    <delete id="deleteById">
+        delete from $data.tableName where id = #{id};
+    </delete>
+    
+    <!-- 逻辑删除 -->
+    <!-- 
+    <update id="deleteById">
+        update set $data.deleteFieldName = 1, update_time = now() where id = #{id} and $data.deleteFieldName = 0;
+    </update>
+     -->
+    
+    <insert id="insert" parameterType="$data.entityName" useGeneratedKeys="true" keyProperty="id">
+        insert into $data.tableName
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+#foreach($field in $data.fields)
+            <if test="$field.left != null">${field.right},</if>
+#end
+            create_time,
+            update_time,
+            status
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+#foreach($field in $data.fields)
+            <if test="$field.left != null">#{$field.left},</if>
+#end
+            now(),
+            now(),
+            0
+        </trim>
+    </insert>
+    
+    <update id="update" parameterType="$data.entityName">
+        update $data.tableName
+        <set>
+#foreach($field in $data.fields)
+            <if test="$field.left != null">$field.right = #{$field.left},</if>
+#end
+             update_time = now()
+        </set>
+        where id = #{id} and $data.deleteFieldName = 0;
+    </update>
+    
+    <select id="listByIds" resultType="$data.entityName">
+        <if test="ids != null and !ids.isEmpty()">
+            select * from $data.tableName where id in 
+            <foreach collection="ids" item="item" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+            and $data.deleteFieldName = 0
+        </if>
+    </select>
+      
+    <sql id="query_filter">
+        <if test="model.id != null">and id = #{model.id}</if>
+#foreach($field in $data.fields)
+        <if test="model.$field.left != null">and $field.right = #{model.$field.left}</if>
+#end
+        and $data.deleteFieldName = 0
+    </sql>
+    
+    <sql id="count_filter">
+        <if test="id != null">and id = #{id}</if>
+#foreach($field in $data.fields)
+        <if test="$field.left != null">and $field.right = #{$field.left}</if>
+#end
+        and $data.deleteFieldName = 0
+    </sql>
+    
+    <select id="list" resultType="$data.entityName" >
+        select * from $data.tableName
+        <where>
+            <include refid="query_filter"/>
+        </where>
+        <foreach item="sort" index="col" collection="orderBy"
+                 open="ORDER BY" separator="," close="">
+            ${col} ${sort}
+        </foreach>
+        limit #{startRow}, #{pageSize};
+    </select>
+
+    <select id="count" resultType="int">
+        select count(*) from $data.tableName
+        <where>
+            <include refid="count_filter"/>
+        </where>
+    </select>
+  
+</mapper>
